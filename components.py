@@ -23,4 +23,14 @@ class Video:
         self.name = name
 
 
+class Ffmpeg:
+    def __init__(self):
+        self.video = Video()
 
+
+    def video_compressor(self):
+        pass
+
+    
+    def video_converter(self):
+        pass
