@@ -19,7 +19,7 @@ class Video:
         self.find_video_name(location.split("/")[-1])
         self.location = location
 
-    def find_video_name(self,name):
+    def find_video_name(self, name):
         self.name = name
 
 
@@ -36,14 +36,18 @@ class Ffmpeg:
 
         location_with_appendages = str(output).split(",")[2]
         location = location_with_appendages[10:-3]
-        
-        return location 
+
+        return location
 
     def video_compressor(self):
-        pass
+        self.video.find_video_location()
+        output_path = self.export_ffmpeg_output_file()
+        codec = input("enter video codec: ")
+        output_file_name = input("enter output file name: ")
+        subprocess.run(
+            f"ffmpeg -i {self.video.location} -c:v {codec} -crf 24 {output_path}/{output_file_name}",
+            shell=True,
+        )
 
-    
     def video_converter(self):
         pass
-
-
