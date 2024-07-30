@@ -39,7 +39,7 @@ class Ffmpeg:
 
         return location
 
-    def video_compressor(self):
+    def video_converter(self):
         self.video.find_video_location()
         output_path = self.export_ffmpeg_output_file()
         codec = input("enter video codec: ")
@@ -48,6 +48,3 @@ class Ffmpeg:
             f"ffmpeg -i {self.video.location} -c:v {codec} -crf 24 {output_path}/{output_file_name}",
             shell=True,
         )
-
-    def video_converter(self):
-        pass
