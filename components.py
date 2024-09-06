@@ -1,7 +1,9 @@
-import subprocess, gi
+import subprocess, gi, os
 
 gi.require_versions({"Gtk": "4.0", "Adw": "1"})
-from gi.repository import Gtk, Adw
+from gi.repository import Gtk, Adw, Gio, GdkPixbuf, GLib, Gdk
+
+absolute_path = os.path.dirname(__file__)
 
 
 class MainWindow(Adw.ApplicationWindow):
@@ -38,13 +40,14 @@ class MainWindow(Adw.ApplicationWindow):
         self.center_box.append(self.clamp)
 
         # Logo
-
-        self.app_logo = Gtk.Image()
-        self.app_logo.set_from_file(
-            "/home/malek/Pictures/ffmpeg-converter-gnome-logo.svg"
-        )
-        self.app_logo.set_pixel_size(150)
+        self.logo_clamp = Adw.Clamp()
+        self.logo_clamp.set_maximum_size(170)
+        self.app_logo = Gtk.Picture()
+        self.logo_path = absolute_path + "/greenfilm-logo.svg"
         self.app_logo.set_margin_bottom(25)
+        self.set_logo(self.logo_path, 1200)
+        self.logo_clamp.set_child(self.app_logo)
+        self.clamp_box.append(self.logo_clamp)
 
         # input group
         self.group = Adw.PreferencesGroup()
@@ -66,13 +69,10 @@ class MainWindow(Adw.ApplicationWindow):
         self.app_name_label.set_margin_bottom(5)
 
         # app description label
-        self.description_label = Gtk.Label(
-            label="Add a Video To Start Codec Converting"
-        )
+        self.description_label = Gtk.Label(label="Add A Video To Start Converting")
 
         # add widgets to preferences group
         # self.group.add(self.combo_row)
-        self.group.add(self.app_logo)
         self.group.add(self.app_name_label)
         self.group.add(self.description_label)
         self.group.add(self.button)
@@ -103,6 +103,19 @@ class MainWindow(Adw.ApplicationWindow):
 
         dialog.destroy()
 
+    def load_svg(self, path, size):
+        file = Gio.File.new_for_path(path)
+        stream = file.read()
+        pixbuf = GdkPixbuf.Pixbuf.new_from_stream_at_scale(
+            stream, size, size, True, None
+        )
+        texture = Gdk.Texture.new_for_pixbuf(pixbuf)
+        return texture
+
+    def set_logo(self, logo_path, size):
+        logo_texture = self.load_svg(self.logo_path, size)
+        self.app_logo.set_paintable(logo_texture)
+
 
 class Myapp(Adw.Application):
     def __init__(self, *args, **kwargs):
@@ -115,7 +128,6 @@ class Myapp(Adw.Application):
 
 
 app = Myapp()
-
 app.run(None)
 
 
