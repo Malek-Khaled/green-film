@@ -6,21 +6,9 @@ from gi.repository import Gtk, Adw, Gio, GdkPixbuf, GLib, Gdk
 absolute_path = os.path.dirname(__file__)
 
 
-class MainWindow(Adw.ApplicationWindow):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.set_size_request(600, 480)
-        self.set_default_size(1280, 720)
-
-        # navigation view
-        self.navigation_view = Adw.NavigationView()
-        self.set_content(self.navigation_view)
-        main_page = Main_page().get_the_page()
-        self.navigation_view.push(main_page)
-
-
-class Main_page(MainWindow):
-    def __init__(self):
+class Main_page:
+    def __init__(self, main_window):
+        self.main_window = main_window
         self.first_page = Adw.NavigationPage()
         self.first_page.set_title("select file")
 
@@ -114,6 +102,8 @@ class Main_page(MainWindow):
         if responce == Gtk.ResponseType.ACCEPT:
             file_path = dialog.get_file().get_path()
             dialog.destroy()
+            second_page = Second_page(self).get_page()
+            self.main_window.navigation_view.push(second_page)
             return file_path
 
         dialog.destroy()
@@ -135,6 +125,34 @@ class Main_page(MainWindow):
         return self.first_page
 
 
+class Second_page:
+    def __init__(self, main_page):
+        self.main_page = main_page
+        self.second_page = Adw.NavigationPage()
+        self.second_page.set_title("select file")
+        self.main_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=30)
+        self.headerbar = Adw.HeaderBar()
+        self.main_box.append(self.headerbar)
+        self.second_page.set_child(self.main_box)
+
+    def get_page(self):
+        return self.second_page
+
+
+class MainWindow(Adw.ApplicationWindow):
+    def __init__(self, *args, **kwargs):
+        main_page = Main_page(self)
+        super().__init__(*args, **kwargs)
+        self.set_size_request(600, 480)
+        self.set_default_size(1280, 720)
+
+        # navigation view
+        self.navigation_view = Adw.NavigationView()
+        self.set_content(self.navigation_view)
+        main_page = main_page.get_the_page()
+        self.navigation_view.push(main_page)
+
+
 class Myapp(Adw.Application):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -147,52 +165,3 @@ class Myapp(Adw.Application):
 
 app = Myapp()
 app.run(None)
-
-
-class Video:
-    def __init__(self):
-        self.location = ""
-        self.name = ""
-
-    def find_video_location(self):
-        output = subprocess.run(
-            ['zenity --file-selection --title="Select a Video"'],
-            shell=True,
-            capture_output=True,
-        )
-
-        location_with_appendages = str(output).split(",")[2]
-        location = location_with_appendages[10:-3]
-
-        self.find_video_name(location.split("/")[-1])
-        self.location = location
-
-    def find_video_name(self, name):
-        self.name = name
-
-
-class Ffmpeg:
-    def __init__(self):
-        self.video = Video()
-
-    def export_ffmpeg_output_file(self):
-        output = subprocess.run(
-            ['zenity --file-selection --directory --save --title="Select a File"'],
-            shell=True,
-            capture_output=True,
-        )
-
-        location_with_appendages = str(output).split(",")[2]
-        location = location_with_appendages[10:-3]
-
-        return location
-
-    def video_converter(self):
-        self.video.find_video_location()
-        output_path = self.export_ffmpeg_output_file()
-        codec = input("enter video codec: ")
-        output_file_name = input("enter output file name: ")
-        subprocess.run(
-            f"ffmpeg -i {self.video.location} -c:v {codec} -crf 24 {output_path}/{output_file_name}",
-            shell=True,
-        )
