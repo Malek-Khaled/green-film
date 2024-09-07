@@ -12,9 +12,20 @@ class MainWindow(Adw.ApplicationWindow):
         self.set_size_request(600, 480)
         self.set_default_size(1280, 720)
 
+        # navigation view
+        self.navigation_view = Adw.NavigationView()
+        self.set_content(self.navigation_view)
+        main_page = Main_page().get_the_page()
+        self.navigation_view.push(main_page)
+
+
+class Main_page(MainWindow):
+    def __init__(self):
+        self.first_page = Adw.NavigationPage()
+        self.first_page.set_title("select file")
+
         # main box
         self.main_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=30)
-        self.set_content(self.main_box)
 
         # center box
         self.center_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=30)
@@ -78,13 +89,17 @@ class MainWindow(Adw.ApplicationWindow):
         self.group.add(self.button)
         self.clamp_box.append(self.group)
 
+        self.first_page.set_child(self.main_box)
+
     def get_selected_codec(self, _):
         selected_codec_index = self.combo_row.get_selected()
         return self.combo_row.get_model().get_string(selected_codec_index)
 
     def file_dialog_open(self, _):
         file_dialog = Gtk.FileChooserDialog(
-            title="Choose a video", parent=self, action=Gtk.FileChooserAction.OPEN
+            title="Choose a video",
+            parent=MainWindow(),
+            action=Gtk.FileChooserAction.OPEN,
         )
         file_dialog.set_size_request(800, 600)
 
@@ -115,6 +130,9 @@ class MainWindow(Adw.ApplicationWindow):
     def set_logo(self, logo_path, size):
         logo_texture = self.load_svg(self.logo_path, size)
         self.app_logo.set_paintable(logo_texture)
+
+    def get_the_page(self):
+        return self.first_page
 
 
 class Myapp(Adw.Application):
