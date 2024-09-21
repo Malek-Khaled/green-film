@@ -1,9 +1,7 @@
-import threading
 import os
 import gi
 from second_page import Second_page
 
-gi.require_version("Gtk", "4.0")
 from gi.repository import Adw, Gtk
 
 absolute_path = os.path.dirname(__file__)
@@ -55,11 +53,11 @@ class Main_page:
         # input group
         self.group = Adw.PreferencesGroup()
         # button
-        self.button = Gtk.Button(label="Add a Video")
-        self.button.add_css_class("suggested-action")
-        self.button.add_css_class("pill")
-        self.button.set_margin_top(25)
-        self.button.connect("clicked", self.file_dialog_open)
+        self.import_file_button = Gtk.Button(label="Add a Video")
+        self.import_file_button.add_css_class("suggested-action")
+        self.import_file_button.add_css_class("pill")
+        self.import_file_button.set_margin_top(25)
+        self.import_file_button.connect("clicked", self.file_dialog_open)
 
         # app name label
         self.app_name_label = Gtk.Label(label="Green Film")
@@ -73,7 +71,7 @@ class Main_page:
         # self.group.add(self.combo_row)
         self.group.add(self.app_name_label)
         self.group.add(self.description_label)
-        self.group.add(self.button)
+        self.group.add(self.import_file_button)
         self.clamp_box.append(self.group)
 
         self.first_page.set_child(self.main_box)
@@ -92,6 +90,7 @@ class Main_page:
         )
         file_dialog.connect("response", self.file_dialog_responce)
         file_dialog.present()
+        self.import_file_button.set_sensitive(False)
 
     def file_dialog_responce(self, dialog, responce):
         if responce == Gtk.ResponseType.ACCEPT:
@@ -104,6 +103,7 @@ class Main_page:
             self.main_window.navigation_view.push(second_page)
 
         dialog.destroy()
+        self.import_file_button.set_sensitive(True)
 
     def get_the_page(self):
         return self.first_page
