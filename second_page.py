@@ -1,9 +1,12 @@
 import subprocess
 import threading
+import re
+from types import NoneType
 import gi
 
-gi.require_version("Gtk", "4.0")
-from gi.repository import Adw, Gdk, GdkPixbuf, Gio, GLib, Gtk
+
+from gi.repository import Adw, GLib, Gtk
+from gi.repository.GObject import idle_add
 
 
 class Second_page:
@@ -87,6 +90,7 @@ class Second_page:
         )
         file_dialog.connect("response", self.file_dialog_responce)
         file_dialog.present()
+        self.converting_button.set_sensitive(False)
 
     def file_dialog_responce(self, dialog, responce):
         if responce == Gtk.ResponseType.ACCEPT:
@@ -96,38 +100,124 @@ class Second_page:
             codec = self.get_selected_codec("")
             dialog.destroy()
 
+            self.progress_win = Progress_window(self.main_window)
+            self.progress_win.present()
             thread = threading.Thread(
                 target=self.run_the_converter,
                 args=(video_path, folder, output_video_name, codec),
             )
             thread.start()
 
+        dialog.destroy()
+        self.converting_button.set_sensitive(True)
+
     def run_the_converter(self, video_path, folder, output_name, codec):
         ffmpeg = Ffmpeg()
+        ffmpeg.get_video_path(video_path)
         if codec == "H.264":
             ffmpeg.convert_video(
-                video_path,
+                self,
                 "libx264",
                 f"{folder}/{output_name}.mp4",
             )
         elif codec == "HEVC":
             ffmpeg.convert_video(
-                video_path,
+                self,
                 "libx265",
                 f"{folder}/{output_name}.mp4",
             )
         else:
             ffmpeg.convert_video(
-                video_path,
+                self,
                 "libsvtav1",
                 f"{folder}/{output_name}.mp4",
             )
 
 
+class Progress_window(Adw.Window):
+    def __init__(self, parent):
+        super().__init__()
+        self.set_transient_for(parent)
+        self.set_modal(True)
+        self.set_title("Conversion Progress")
+        self.set_default_size(400, 200)
+
+        # main box
+        self.main_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=30)
+        self.set_content(self.main_box)
+
+        # center box
+        self.center_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=30)
+        self.center_box.set_valign(Gtk.Align.CENTER)
+        self.center_box.set_halign(Gtk.Align.CENTER)
+        self.center_box.set_hexpand(True)
+        self.center_box.set_vexpand(True)
+        self.main_box.append(self.center_box)
+
+        # clamp
+        self.clamp = Adw.Clamp()
+        self.center_box.append(self.clamp)
+        self.clamp_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=30)
+        self.clamp.set_child(self.clamp_box)
+
+        # status label
+        self.status_label = Gtk.Label(label="Converting The Video")
+        self.status_label.add_css_class("title-3")
+        self.clamp_box.append(self.status_label)
+
+        # progress bar
+        self.progress_bar = Gtk.ProgressBar()
+        self.progress_bar.set_fraction(0)
+        self.progress_bar.set_margin_start(15)
+        self.progress_bar.set_margin_end(15)
+        self.clamp_box.append(self.progress_bar)
+
+    def update_progress_bar(self, progress):
+        self.progress_bar.set_fraction(progress)
+
+    def process_complete(self):
+        self.hide()
+        self.destroy()
+
+
 class Ffmpeg:
-    def convert_video(self, video_path, codec, output_name):
-        subprocess.run(
-            f"ffmpeg -i {video_path} -c:v {codec} {output_name}",
+    def __ini__(self):
+        self.video_path = None
+        self.duration = None
+
+    def convert_video(self, window, codec, output_name):
+        process = subprocess.Popen(
+            f"ffmpeg -i {self.video_path} -c:v {codec} -c:a copy {output_name}",
             shell=True,
-            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
         )
+
+        for line in process.stderr:
+            same = re.search(r"time=(\d+):(\d+):(\d+.\d+)", line)
+            if same is not None:
+                hours, minutes, seconds = map(float, same.groups())
+                progress = (
+                    self.convert_time_to_seconds(hours, minutes, seconds)
+                    / self.get_video_duration()
+                )
+                print(progress)
+                GLib.idle_add(window.progress_win.update_progress_bar, progress)
+
+        GLib.idle_add(window.progress_win.process_complete)
+
+    def get_video_duration(self):
+        duration = subprocess.run(
+            f"ffprobe -i {self.video_path} -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1",
+            capture_output=True,
+            shell=True,
+        )
+        return float(duration.stdout)
+
+    def get_video_path(self, video_path):
+        self.video_path = video_path
+
+    def convert_time_to_seconds(self, hours, minutes, seconds):
+        hours = hours * 60 * 60
+        minutes *= 60
+        return seconds + minutes + hours
