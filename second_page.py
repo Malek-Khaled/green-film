@@ -44,8 +44,8 @@ class Second_page:
         self.group = Adw.PreferencesGroup()
 
         # entry row
-        self.entry_row = Adw.EntryRow()
-        self.entry_row.set_title("Enter Video Name")
+        # self.entry_row = Adw.EntryRow()
+        # self.entry_row.set_title("Enter Video Name")
 
         # combo row
         self.combo_row = Adw.ComboRow()
@@ -53,7 +53,7 @@ class Second_page:
         self.combo_row.set_model(Gtk.StringList.new(["H.264", "HEVC", "Av1"]))
 
         # add widgets to the preferences group
-        self.group.add(self.entry_row)
+        # self.group.add(self.entry_row)
         self.group.add(self.combo_row)
         self.clamp_box.append(self.group)
 
@@ -80,7 +80,7 @@ class Second_page:
         file_dialog = Gtk.FileChooserDialog(
             title="choose a folder",
             parent=self.main_window,
-            action=Gtk.FileChooserAction.SELECT_FOLDER,
+            action=Gtk.FileChooserAction.SAVE,
         )
         file_dialog.set_size_request(800, 600)
 
@@ -88,6 +88,7 @@ class Second_page:
         file_dialog.add_button("Save", Gtk.ResponseType.ACCEPT).add_css_class(
             "suggested-action"
         )
+
         file_dialog.connect("response", self.file_dialog_responce)
         file_dialog.present()
         self.converting_button.set_sensitive(False)
@@ -96,7 +97,6 @@ class Second_page:
         if responce == Gtk.ResponseType.ACCEPT:
             video_path = self.main_page.video_path
             folder = dialog.get_file().get_path()
-            output_video_name = self.entry_row.get_text()
             codec = self.get_selected_codec("")
             dialog.destroy()
 
@@ -104,33 +104,33 @@ class Second_page:
             self.progress_win.present()
             thread = threading.Thread(
                 target=self.run_the_converter,
-                args=(video_path, folder, output_video_name, codec),
+                args=(video_path, folder, codec),
             )
             thread.start()
 
         dialog.destroy()
         self.converting_button.set_sensitive(True)
 
-    def run_the_converter(self, video_path, folder, output_name, codec):
+    def run_the_converter(self, video_path, folder, codec):
         ffmpeg = Ffmpeg()
         ffmpeg.get_video_path(video_path)
         if codec == "H.264":
             ffmpeg.convert_video(
                 self,
                 "libx264",
-                f"{folder}/{output_name}.mp4",
+                folder,
             )
         elif codec == "HEVC":
             ffmpeg.convert_video(
                 self,
                 "libx265",
-                f"{folder}/{output_name}.mp4",
+                folder,
             )
         else:
             ffmpeg.convert_video(
                 self,
                 "libsvtav1",
-                f"{folder}/{output_name}.mp4",
+                folder,
             )
 
 
@@ -187,12 +187,11 @@ class Ffmpeg:
 
     def convert_video(self, window, codec, output_name):
         process = subprocess.Popen(
-            f"ffmpeg -i {self.video_path} -c:v {codec} -c:a copy {output_name}",
+            f"ffmpeg -y -i {self.video_path} -c:v {codec} -c:a copy {output_name}",
             shell=True,
             stderr=subprocess.PIPE,
             text=True,
         )
-
         for line in process.stderr:
             same = re.search(r"time=(\d+):(\d+):(\d+.\d+)", line)
             if same is not None:

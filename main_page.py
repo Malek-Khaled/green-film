@@ -88,6 +88,12 @@ class Main_page:
         file_dialog.add_button("Open", Gtk.ResponseType.ACCEPT).add_css_class(
             "suggested-action"
         )
+
+        # add filter
+        filter = Gtk.FileFilter()
+        filter.add_pattern("*.mp4")
+        filter.add_pattern("*.mov")
+        file_dialog.add_filter(filter)
         file_dialog.connect("response", self.file_dialog_responce)
         file_dialog.present()
         self.import_file_button.set_sensitive(False)
