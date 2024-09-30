@@ -52,9 +52,13 @@ class Second_page:
         self.combo_row.set_title("Codecs")
         self.combo_row.set_model(Gtk.StringList.new(["H.264", "HEVC", "Av1"]))
 
+        # switch row
+        self.switch_row = Adw.SwitchRow(title="Hardware Acceleration")
+
         # add widgets to the preferences group
         # self.group.add(self.entry_row)
         self.group.add(self.combo_row)
+        self.group.add(self.switch_row)
         self.clamp_box.append(self.group)
 
         # converting button
@@ -115,21 +119,30 @@ class Second_page:
         ffmpeg = Ffmpeg()
         ffmpeg.get_video_path(video_path)
         if codec == "H.264":
+            codec = "libx264"
+            if self.switch_row.get_active():
+                codec = "h264_nvenc"
             ffmpeg.convert_video(
                 self,
-                "libx264",
+                codec,
                 folder,
             )
         elif codec == "HEVC":
+            codec = "libx265"
+            if self.switch_row.get_active():
+                codec = "hevc_nvenc"
             ffmpeg.convert_video(
                 self,
-                "libx265",
+                codec,
                 folder,
             )
         else:
+            codec = "libsvtav1"
+            if self.switch_row.get_active():
+                codec = "av1_nvenc"
             ffmpeg.convert_video(
                 self,
-                "libsvtav1",
+                codec,
                 folder,
             )
 
