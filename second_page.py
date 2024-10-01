@@ -157,6 +157,8 @@ class Ffmpeg:
                 == "done"
             ):
                 break
+            error_window = No_encoder_found_window(window.main_window)
+            self.no_encoder_found_handler(line, error_window)
             same = re.search(r"time=(\d+):(\d+):(\d+.\d+)", line)
             if same is not None:
                 hours, minutes, seconds = map(float, same.groups())
@@ -207,3 +209,50 @@ class Ffmpeg:
             if char in allowed_chars:
                 lis.remove(char)
         return lis
+    def no_encoder_found_handler(self, process_line, error_window):
+        same = re.search(r"Encoder not found", process_line)
+
+        if same is not None:
+            GLib.idle_add(error_window.present)
+
+
+class No_encoder_found_window(Adw.Window):
+    def __init__(self, parent):
+        super().__init__()
+        self.set_transient_for(parent)
+        self.set_modal(True)
+        self.set_title("No Encoder found")
+        self.set_default_size(400, 200)
+
+        # main box
+        self.main_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=20)
+        self.set_content(self.main_box)
+
+        # center box
+        self.center_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=20)
+        self.center_box.set_halign(Gtk.Align.CENTER)
+        self.center_box.set_valign(Gtk.Align.CENTER)
+        self.center_box.set_hexpand(True)
+        self.center_box.set_vexpand(True)
+        self.main_box.append(self.center_box)
+
+        # label
+        self.error_label = Gtk.Label(label="No Encoder Found")
+        self.error_label.add_css_class("title - 2")
+        self.center_box.append(self.error_label)
+
+        # close button
+        self.close_button = Gtk.Button(label="Close")
+        self.close_button.add_css_class("destructive-action")
+        self.close_button.connect("clicked", self.close_Window)
+
+        # button box
+        self.clamp = Adw.Clamp()
+        self.button_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=20)
+        self.main_box.append(self.clamp)
+        self.clamp.set_child(self.button_box)
+        self.button_box.append(self.close_button)
+
+    def close_Window(self, _):
+        self.hide()
+        self.destroy()
