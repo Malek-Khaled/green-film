@@ -238,20 +238,19 @@ class No_encoder_found_window(Adw.Window):
 
         # label
         self.error_label = Gtk.Label(label="No Encoder Found")
-        self.error_label.add_css_class("title - 2")
+        self.error_label.add_css_class("title-3")
         self.center_box.append(self.error_label)
 
         # close button
         self.close_button = Gtk.Button(label="Close")
         self.close_button.add_css_class("destructive-action")
         self.close_button.connect("clicked", self.close_Window)
-
-        # button box
-        self.clamp = Adw.Clamp()
-        self.button_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=20)
-        self.main_box.append(self.clamp)
-        self.clamp.set_child(self.button_box)
-        self.button_box.append(self.close_button)
+        self.close_button.set_margin_bottom(20)
+        # button clamp
+        self.close_button_clamp = Adw.Clamp()
+        self.close_button_clamp.set_maximum_size(200)
+        self.main_box.append(self.close_button_clamp)
+        self.close_button_clamp.set_child(self.close_button)
 
     def close_Window(self, _):
         self.hide()
