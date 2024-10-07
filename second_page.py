@@ -157,8 +157,8 @@ class Ffmpeg:
                 == "done"
             ):
                 break
-            error_window = No_encoder_found_window(window.main_window)
-            self.no_encoder_found_handler(line, error_window)
+            error_window = errors_handling_window(window.main_window)
+            self.error_window_presenter(line, error_window)
             same = re.search(r"time=(\d+):(\d+):(\d+.\d+)", line)
             if same is not None:
                 hours, minutes, seconds = map(float, same.groups())
@@ -209,14 +209,18 @@ class Ffmpeg:
             if char in allowed_chars:
                 lis.remove(char)
         return lis
-    def no_encoder_found_handler(self, process_line, error_window):
-        same = re.search(r"Encoder not found", process_line)
 
-        if same is not None:
-            GLib.idle_add(error_window.present)
+    def error_window_presenter(self, process_line, error_window):
+        encoder_match = re.search(r"Encoder not found", process_line)
+        decoder_match = re.search(r"but no decoder found for:", process_line)
+
+        if encoder_match is not None:
+            GLib.idle_add(error_window.no_encoder_found_present)
+        elif decoder_match is not None:
+            GLib.idle_add(error_window.no_hardware_decoder_found_present)
 
 
-class No_encoder_found_window(Adw.Window):
+class errors_handling_window(Adw.Window):
     def __init__(self, parent):
         super().__init__()
         self.set_transient_for(parent)
@@ -237,8 +241,8 @@ class No_encoder_found_window(Adw.Window):
         self.main_box.append(self.center_box)
 
         # label
-        self.error_label = Gtk.Label(label="No Encoder Found")
-        self.error_label.add_css_class("title-3")
+        self.error_label = Gtk.Label()
+        self.error_label.set_wrap(True)
         self.center_box.append(self.error_label)
 
         # close button
@@ -251,6 +255,19 @@ class No_encoder_found_window(Adw.Window):
         self.close_button_clamp.set_maximum_size(200)
         self.main_box.append(self.close_button_clamp)
         self.close_button_clamp.set_child(self.close_button)
+
+    def no_encoder_found_present(self):
+        self.error_label.add_css_class("title-3")
+        self.error_label.set_label("There Is No Encoder Found")
+        self.present()
+
+    def no_hardware_decoder_found_present(self):
+        self.error_label.set_max_width_chars(30)
+        self.error_label.add_css_class("title-4")
+        self.error_label.set_label(
+            "There Is No Hardware Acceleration Support On Your Card"
+        )
+        self.present()
 
     def close_Window(self, _):
         self.hide()
