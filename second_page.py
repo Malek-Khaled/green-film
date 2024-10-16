@@ -150,6 +150,7 @@ class Second_page:
 class Progress_window(Adw.Window):
     def __init__(self, parent):
         super().__init__()
+        self.cancellation = False
         self.set_transient_for(parent)
         self.set_modal(True)
         self.set_title("Conversion Progress")
@@ -185,12 +186,24 @@ class Progress_window(Adw.Window):
         self.progress_bar.set_margin_end(15)
         self.clamp_box.append(self.progress_bar)
 
+        # cancel button
+        self.cancel_button = Gtk.Button(label="Cancel")
+        self.cancel_button.add_css_class("destructive-action")
+        self.cancel_button.connect("clicked", self.cancel_state)
+        self.cancel_button_clamp = Adw.Clamp()
+        self.center_box.append(self.cancel_button_clamp)
+        self.cancel_button_clamp.set_maximum_size(50)
+        self.cancel_button_clamp.set_child(self.cancel_button)
+
     def update_progress_bar(self, progress):
         self.progress_bar.set_fraction(progress)
 
-    def process_complete(self):
+    def process_end(self):
         self.hide()
         self.destroy()
+
+    def cancel_state(self, _):
+        self.cancellation = True
 
 
 class Ffmpeg:
@@ -198,14 +211,16 @@ class Ffmpeg:
         self.video_path = None
         self.duration = None
 
-    def convert_video(self, window, codec, output_name):
+    def convert_video(self, window, codec, output_path):
         process = subprocess.Popen(
-            f"ffmpeg -y -i {self.video_path} -c:v {codec} -c:a copy {output_name}",
+            f"ffmpeg -y -i {self.video_path} -c:v {codec} -c:a copy {output_path}",
             shell=True,
             stderr=subprocess.PIPE,
             text=True,
         )
         for line in process.stderr:
+            if self.cancel_process(process, window.progress_win, output_path) == "done":
+                break
             same = re.search(r"time=(\d+):(\d+):(\d+.\d+)", line)
             if same is not None:
                 hours, minutes, seconds = map(float, same.groups())
@@ -216,7 +231,7 @@ class Ffmpeg:
                 print(progress)
                 GLib.idle_add(window.progress_win.update_progress_bar, progress)
 
-        GLib.idle_add(window.progress_win.process_complete)
+        GLib.idle_add(window.progress_win.process_end)
 
     def get_video_duration(self):
         duration = subprocess.run(
@@ -233,3 +248,10 @@ class Ffmpeg:
         hours = hours * 60 * 60
         minutes *= 60
         return seconds + minutes + hours
+
+    def cancel_process(self, process, progress_win, output_video_path):
+        if progress_win.cancellation:
+            GLib.idle_add(progress_win.process_end)
+            process.kill()
+            subprocess.run(f"rm {output_video_path}", shell=True)
+            return "done"
