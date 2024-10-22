@@ -50,15 +50,22 @@ class Second_page:
         # combo row
         self.combo_row = Adw.ComboRow()
         self.combo_row.set_title("Codecs")
-        self.combo_row.set_model(Gtk.StringList.new(["H.264", "HEVC", "Av1"]))
+        self.combo_row.set_model(Gtk.StringList.new(["H.264", "HEVC"]))
 
-        # switch row
-        self.switch_row = Adw.SwitchRow(title="Hardware Acceleration")
+        # switch rows
+
+        # hardware acceleration siwtch row
+        self.hardware_switch_row = Adw.SwitchRow(title="Hardware Acceleration")
+        self.hardware_switch_row.connect("notify::active", self.av1_option_visibility)
+        # av1 software encoding siwtch row
+        self.av1_switch_row = Adw.SwitchRow(title="AV1 Software Encoding")
+        self.av1_switch_row.connect("notify::active", self.av1_switch_row_enabled)
 
         # add widgets to the preferences group
         # self.group.add(self.entry_row)
         self.group.add(self.combo_row)
-        self.group.add(self.switch_row)
+        self.group.add(self.hardware_switch_row)
+        self.group.add(self.av1_switch_row)
         self.clamp_box.append(self.group)
 
         # converting button
@@ -68,6 +75,20 @@ class Second_page:
         self.converting_button.add_css_class("pill")
         self.converting_button.set_margin_top(15)
         self.converting_button.connect("clicked", self.file_dialog_save)
+
+        # alert dialog
+        self.alert_dialog = Adw.AlertDialog(
+            heading="Enable AV1 Software Encoding?",
+            body="AV1 Software Encoding It May Be Very Slow On Some Devices",
+            default_response="Cancel",
+            close_response="Cancel",
+        )
+        self.alert_dialog.add_response("Cancel", "Cancel")
+        self.alert_dialog.add_response("Enable", "Enable")
+        self.alert_dialog.set_response_appearance(
+            "Enable", Adw.ResponseAppearance.DESTRUCTIVE
+        )
+        self.alert_dialog.connect("response", self.alert_dialog_response)
 
     def get_selected_codec(self, _=""):
         selected_codec_index = self.combo_row.get_selected()
@@ -120,7 +141,7 @@ class Second_page:
         ffmpeg.get_video_path(video_path)
         if codec == "H.264":
             codec = "libx264"
-            if self.switch_row.get_active():
+            if self.hardware_switch_row.get_active():
                 codec = "h264_nvenc"
             ffmpeg.convert_video(
                 self,
@@ -129,7 +150,7 @@ class Second_page:
             )
         elif codec == "HEVC":
             codec = "libx265"
-            if self.switch_row.get_active():
+            if self.hardware_switch_row.get_active():
                 codec = "hevc_nvenc"
             ffmpeg.convert_video(
                 self,
@@ -138,13 +159,38 @@ class Second_page:
             )
         else:
             codec = "libsvtav1"
-            if self.switch_row.get_active():
+            if self.hardware_switch_row.get_active():
                 codec = "av1_nvenc"
             ffmpeg.convert_video(
                 self,
                 codec,
                 folder,
             )
+
+    def av1_switch_row_enabled(self, _, _2):
+        if self.av1_switch_row.get_active():
+            self.alert_dialog.choose(parent=self.main_window)
+        self.av1_option_visibility()
+
+    def alert_dialog_response(self, dialog, response):
+        if response == "Cancel":
+            self.av1_switch_row.set_active(False)
+
+    def av1_option_visibility(self, _="", _2=""):
+        if self.av1_switch_row.get_active() or self.hardware_switch_row.get_active():
+            self.combo_row.set_model(Gtk.StringList.new(["H.264", "HEVC", "AV1"]))
+            self.av1_switch_row_senstive()
+
+        else:
+            self.combo_row.set_model(Gtk.StringList.new(["H.264", "HEVC"]))
+            self.av1_switch_row_senstive()
+
+    def av1_switch_row_senstive(self):
+        if self.hardware_switch_row.get_active():
+            self.av1_switch_row.set_sensitive(False)
+
+        else:
+            self.av1_switch_row.set_sensitive(True)
 
 
 class Progress_window(Adw.Window):
