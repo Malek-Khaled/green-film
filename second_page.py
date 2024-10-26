@@ -14,6 +14,7 @@ class Second_page:
         self.main_page = main_page
         self.main_window = main_window
         self.second_page = Adw.NavigationPage()
+        self.preferences_dialog = Preferences_dialog(self)
         self.second_page.set_title(main_page.video_name)
 
         # main box
@@ -52,43 +53,27 @@ class Second_page:
         self.combo_row.set_title("Codecs")
         self.combo_row.set_model(Gtk.StringList.new(["H.264", "HEVC"]))
 
-        # switch rows
-
-        # hardware acceleration siwtch row
-        self.hardware_switch_row = Adw.SwitchRow(title="Hardware Acceleration")
-        self.hardware_switch_row.connect("notify::active", self.av1_option_visibility)
-        # av1 software encoding siwtch row
-        self.av1_switch_row = Adw.SwitchRow(title="AV1 Software Encoding")
-        self.av1_switch_row.connect("notify::active", self.av1_switch_row_enabled)
-
         # add widgets to the preferences group
         # self.group.add(self.entry_row)
         self.group.add(self.combo_row)
-        self.group.add(self.hardware_switch_row)
-        self.group.add(self.av1_switch_row)
         self.clamp_box.append(self.group)
 
         # converting button
+        self.converting_box = Gtk.Box(spacing=10)
+        self.clamp_box.append(self.converting_box)
         self.converting_button = Gtk.Button(label="Convert")
-        self.clamp_box.append(self.converting_button)
+        self.converting_button.set_hexpand(True)
+        self.converting_box.append(self.converting_button)
         self.converting_button.add_css_class("suggested-action")
         self.converting_button.add_css_class("pill")
         self.converting_button.set_margin_top(15)
         self.converting_button.connect("clicked", self.file_dialog_save)
-
-        # alert dialog
-        self.alert_dialog = Adw.AlertDialog(
-            heading="Enable AV1 Software Encoding?",
-            body="AV1 Software Encoding It May Be Very Slow On Some Devices",
-            default_response="Cancel",
-            close_response="Cancel",
-        )
-        self.alert_dialog.add_response("Cancel", "Cancel")
-        self.alert_dialog.add_response("Enable", "Enable")
-        self.alert_dialog.set_response_appearance(
-            "Enable", Adw.ResponseAppearance.DESTRUCTIVE
-        )
-        self.alert_dialog.connect("response", self.alert_dialog_response)
+        # preferences button (more options button)
+        self.preferences_button = Gtk.Button(icon_name="open-menu-symbolic")
+        self.preferences_button.set_valign(Gtk.Align.CENTER)
+        self.preferences_button.set_margin_top(15)
+        self.preferences_button.connect("clicked", self.show_preferences_dialog)
+        self.converting_box.append(self.preferences_button)
 
     def get_selected_codec(self, _=""):
         selected_codec_index = self.combo_row.get_selected()
@@ -141,7 +126,7 @@ class Second_page:
         ffmpeg.get_video_path(video_path)
         if codec == "H.264":
             codec = "libx264"
-            if self.hardware_switch_row.get_active():
+            if self.preferences_dialog.hardware_switch_row.get_active():
                 codec = "h264_nvenc"
             ffmpeg.convert_video(
                 self,
@@ -150,7 +135,7 @@ class Second_page:
             )
         elif codec == "HEVC":
             codec = "libx265"
-            if self.hardware_switch_row.get_active():
+            if self.preferences_dialog.hardware_switch_row.get_active():
                 codec = "hevc_nvenc"
             ffmpeg.convert_video(
                 self,
@@ -159,7 +144,7 @@ class Second_page:
             )
         else:
             codec = "libsvtav1"
-            if self.hardware_switch_row.get_active():
+            if self.preferences_dialog.hardware_switch_row.get_active():
                 codec = "av1_nvenc"
             ffmpeg.convert_video(
                 self,
@@ -167,23 +152,56 @@ class Second_page:
                 folder,
             )
 
-    def av1_switch_row_enabled(self, _, _2):
-        if self.av1_switch_row.get_active():
-            self.alert_dialog.choose(parent=self.main_window)
-        self.av1_option_visibility()
+    def show_preferences_dialog(self, _):
+        self.preferences_dialog.present(self.main_window)
 
-    def alert_dialog_response(self, dialog, response):
-        if response == "Cancel":
-            self.av1_switch_row.set_active(False)
 
-    def av1_option_visibility(self, _="", _2=""):
-        if self.av1_switch_row.get_active() or self.hardware_switch_row.get_active():
-            self.combo_row.set_model(Gtk.StringList.new(["H.264", "HEVC", "AV1"]))
-            self.av1_switch_row_senstive()
+class Preferences_dialog(Adw.Dialog):
+    def __init__(self, second_page):
+        super().__init__(title="Preferences")
+        self.second_page = second_page
+        self.set_content_width(600)
+        self.set_content_height(260)
+        self.set_margin_bottom(20)
 
-        else:
-            self.combo_row.set_model(Gtk.StringList.new(["H.264", "HEVC"]))
-            self.av1_switch_row_senstive()
+        self.main_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=30)
+        self.set_child(self.main_box)
+
+        self.headerbar = Adw.HeaderBar()
+        self.headerbar.add_css_class("flat")
+        self.main_box.append(self.headerbar)
+
+        self.clamp = Adw.Clamp()
+        self.clamp.set_maximum_size(500)
+        self.main_box.append(self.clamp)
+        self.clamp_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=30)
+        self.clamp.set_child(self.clamp_box)
+        # switch rows
+
+        self.settings_group = Adw.PreferencesGroup(title="Encoding Options")
+        # hardware encoding siwtch row
+        self.hardware_switch_row = Adw.SwitchRow(title="Hardware Encoding")
+        self.settings_group.add(self.hardware_switch_row)
+        self.hardware_switch_row.connect("notify::active", self.av1_option_visibility)
+        # av1 software encoding siwtch row
+        self.av1_switch_row = Adw.SwitchRow(title="AV1 Software Encoding")
+        self.settings_group.add(self.av1_switch_row)
+        self.clamp_box.append(self.settings_group)
+
+        # alert dialog
+        self.alert_dialog = Adw.AlertDialog(
+            heading="Enable AV1 Software Encoding?",
+            body="AV1 Software Encoding It May Be Very Slow On Some Devices",
+            default_response="Cancel",
+            close_response="Cancel",
+        )
+        self.alert_dialog.add_response("Cancel", "Cancel")
+        self.alert_dialog.add_response("Enable", "Enable")
+        self.alert_dialog.set_response_appearance(
+            "Enable", Adw.ResponseAppearance.DESTRUCTIVE
+        )
+        self.alert_dialog.connect("response", self.alert_dialog_response)
+        self.av1_switch_row.connect("notify::active", self.av1_switch_row_enabled)
 
     def av1_switch_row_senstive(self):
         if self.hardware_switch_row.get_active():
@@ -191,6 +209,26 @@ class Second_page:
 
         else:
             self.av1_switch_row.set_sensitive(True)
+
+    def av1_option_visibility(self, _="", _2=""):
+        if self.av1_switch_row.get_active() or self.hardware_switch_row.get_active():
+            self.second_page.combo_row.set_model(
+                Gtk.StringList.new(["H.264", "HEVC", "AV1"])
+            )
+            self.av1_switch_row_senstive()
+
+        else:
+            self.second_page.combo_row.set_model(Gtk.StringList.new(["H.264", "HEVC"]))
+            self.av1_switch_row_senstive()
+
+    def av1_switch_row_enabled(self, _, _2):
+        if self.av1_switch_row.get_active():
+            self.alert_dialog.choose(parent=self.second_page.main_window)
+        self.av1_option_visibility()
+
+    def alert_dialog_response(self, dialog, response):
+        if response == "Cancel":
+            self.av1_switch_row.set_active(False)
 
 
 class Progress_window(Adw.Window):
