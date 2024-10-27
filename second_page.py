@@ -1,7 +1,7 @@
 import subprocess
 import threading
 import re
-from types import NoneType
+from file_dialog import File_dialog
 import gi
 
 
@@ -67,7 +67,12 @@ class Second_page:
         self.converting_button.add_css_class("suggested-action")
         self.converting_button.add_css_class("pill")
         self.converting_button.set_margin_top(15)
-        self.converting_button.connect("clicked", self.file_dialog_save)
+        self.converting_button.connect(
+            "clicked",
+            File_dialog.file_dialog_save,
+            self.main_window,
+            self.open_file_dialog,
+        )
         # preferences button (more options button)
         self.preferences_button = Gtk.Button(icon_name="open-menu-symbolic")
         self.preferences_button.set_valign(Gtk.Align.CENTER)
@@ -86,29 +91,11 @@ class Second_page:
         button.add_css_class("suggested-action")
         button.remove_css_class("dim-label")
 
-    def file_dialog_save(self, _=""):
-        file_dialog = Gtk.FileChooserDialog(
-            title="choose a folder",
-            parent=self.main_window,
-            action=Gtk.FileChooserAction.SAVE,
-        )
-        file_dialog.set_size_request(800, 600)
-
-        file_dialog.add_button("Cancel", Gtk.ResponseType.CANCEL)
-        file_dialog.add_button("Save", Gtk.ResponseType.ACCEPT).add_css_class(
-            "suggested-action"
-        )
-
-        file_dialog.connect("response", self.file_dialog_responce)
-        file_dialog.present()
-        self.converting_button.set_sensitive(False)
-
-    def file_dialog_responce(self, dialog, responce):
-        if responce == Gtk.ResponseType.ACCEPT:
+    def open_file_dialog(self, dialog, result):
+        try:
+            folder = dialog.save_finish(result).get_path()
             video_path = self.main_page.video_path
-            folder = dialog.get_file().get_path()
             codec = self.get_selected_codec("")
-            dialog.destroy()
 
             self.progress_win = Progress_window(self.main_window)
             self.progress_win.present()
@@ -117,9 +104,8 @@ class Second_page:
                 args=(video_path, folder, codec),
             )
             thread.start()
-
-        dialog.destroy()
-        self.converting_button.set_sensitive(True)
+        except GLib.GError:
+            return
 
     def run_the_converter(self, video_path, folder, codec):
         ffmpeg = Ffmpeg()
