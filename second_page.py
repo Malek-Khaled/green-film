@@ -157,7 +157,7 @@ class Ffmpeg:
                 == "done"
             ):
                 break
-            error_window = errors_handling_window(window.main_window)
+            error_window = Errors_handling_window(window.main_window)
             self.error_window_presenter(line, error_window)
             same = re.search(r"time=(\d+):(\d+):(\d+.\d+)", line)
             if same is not None:
@@ -220,7 +220,7 @@ class Ffmpeg:
             GLib.idle_add(error_window.no_hardware_decoder_found_present)
 
 
-class errors_handling_window(Adw.Window):
+class Errors_handling_window(Adw.Window):
     def __init__(self, parent):
         super().__init__()
         self.set_transient_for(parent)
