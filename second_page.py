@@ -71,7 +71,7 @@ class Second_page:
             "clicked",
             File_dialog.file_dialog_save,
             self.main_window,
-            self.open_file_dialog,
+            self.file_dialog_result,
         )
         # preferences button (more options button)
         self.preferences_button = Gtk.Button(icon_name="open-menu-symbolic")
@@ -91,7 +91,7 @@ class Second_page:
         button.add_css_class("suggested-action")
         button.remove_css_class("dim-label")
 
-    def open_file_dialog(self, dialog, result):
+    def file_dialog_result(self, dialog, result):
         try:
             folder = dialog.save_finish(result).get_path()
             video_path = self.main_page.video_path

@@ -1,8 +1,9 @@
 import os
 import gi
 from second_page import Second_page
+from file_dialog import File_dialog
 
-from gi.repository import Adw, Gtk
+from gi.repository import Adw, GLib, Gtk
 
 absolute_path = os.path.dirname(__file__)
 
@@ -57,7 +58,12 @@ class Main_page:
         self.import_file_button.add_css_class("suggested-action")
         self.import_file_button.add_css_class("pill")
         self.import_file_button.set_margin_top(25)
-        self.import_file_button.connect("clicked", self.file_dialog_open)
+        self.import_file_button.connect(
+            "clicked",
+            File_dialog.file_dialog_open,
+            self.main_window,
+            self.file_dialog_result,
+        )
 
         # app name label
         self.app_name_label = Gtk.Label(label="Green Film")
@@ -76,40 +82,17 @@ class Main_page:
 
         self.first_page.set_child(self.main_box)
 
-    def file_dialog_open(self, _):
-        file_dialog = Gtk.FileChooserDialog(
-            title="Choose a video",
-            parent=self.main_window,
-            action=Gtk.FileChooserAction.OPEN,
-        )
-        file_dialog.set_size_request(800, 600)
-
-        file_dialog.add_button("Cancel", Gtk.ResponseType.CANCEL)
-        file_dialog.add_button("Open", Gtk.ResponseType.ACCEPT).add_css_class(
-            "suggested-action"
-        )
-
-        # add filter
-        filter = Gtk.FileFilter()
-        filter.add_pattern("*.mp4")
-        filter.add_pattern("*.mov")
-        file_dialog.add_filter(filter)
-        file_dialog.connect("response", self.file_dialog_responce)
-        file_dialog.present()
-        self.import_file_button.set_sensitive(False)
-
-    def file_dialog_responce(self, dialog, responce):
-        if responce == Gtk.ResponseType.ACCEPT:
-            file_path = dialog.get_file().get_path()
-            file_name = dialog.get_file().get_basename()
+    def file_dialog_result(self, dialog, result):
+        try:
+            file = dialog.open_finish(result)
+            file_path = file.get_path()
+            file_name = file.get_basename()
             self.video_path = file_path
             self.video_name = file_name
-            dialog.destroy()
             second_page = Second_page(self, self.main_window).get_page()
             self.main_window.navigation_view.push(second_page)
-
-        dialog.destroy()
-        self.import_file_button.set_sensitive(True)
+        except GLib.GError:
+            return
 
     def get_the_page(self):
         return self.first_page
