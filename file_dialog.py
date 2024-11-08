@@ -18,7 +18,8 @@ class File_dialog(Gtk.FileDialog):
     @staticmethod
     def file_dialog_save(_, parent, callback):
         file_dialog = File_dialog(title="Select Folder")
-        file_dialog.save(parent, None, callback)
+        file_dialog.set_filters(None)
+        file_dialog.select_folder(parent, None, callback)
 
     @staticmethod
     def file_dialog_open(_, parent, callback):

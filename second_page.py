@@ -41,22 +41,32 @@ class Second_page:
         self.clamp_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=30)
         self.clamp.set_child(self.clamp_box)
 
-        # preferences group
-        self.group = Adw.PreferencesGroup()
-
         # entry row
-        # self.entry_row = Adw.EntryRow()
-        # self.entry_row.set_title("Enter Video Name")
+        self.entry_box = Gtk.Box(spacing=6)
+        self.clamp_box.append(self.entry_box)
+
+        self.entry_field = Adw.EntryRow()
+        self.entry_field.set_title("Video Name")
+        self.entry_field.set_hexpand(True)
+
+        self.entry_group = Adw.PreferencesGroup()
+        self.entry_box.append(self.entry_group)
+        self.entry_group.add(self.entry_field)
+
+        self.extension_selector = Adw.ComboRow()
+        self.extension_selector.set_model(Gtk.StringList.new([".mp4", ".mov"]))
+        self.extension_group = Adw.PreferencesGroup()
+        self.entry_box.append(self.extension_group)
+        self.extension_group.add(self.extension_selector)
 
         # combo row
-        self.combo_row = Adw.ComboRow()
-        self.combo_row.set_title("Codecs")
-        self.combo_row.set_model(Gtk.StringList.new(["H.264", "HEVC"]))
+        self.codecs_row = Adw.ComboRow()
+        self.codecs_row.set_title("Codecs")
+        self.codecs_row.set_model(Gtk.StringList.new(["H.264", "HEVC"]))
 
-        # add widgets to the preferences group
-        # self.group.add(self.entry_row)
-        self.group.add(self.combo_row)
-        self.clamp_box.append(self.group)
+        self.codecs_row_group = Adw.PreferencesGroup()
+        self.codecs_row_group.add(self.codecs_row)
+        self.clamp_box.append(self.codecs_row_group)
 
         # converting button
         self.converting_box = Gtk.Box(spacing=10)
@@ -81,8 +91,12 @@ class Second_page:
         self.converting_box.append(self.preferences_button)
 
     def get_selected_codec(self, _=""):
-        selected_codec_index = self.combo_row.get_selected()
-        return self.combo_row.get_model().get_string(selected_codec_index)
+        selected_codec_index = self.codecs_row.get_selected()
+        return self.codecs_row.get_model().get_string(selected_codec_index)
+
+    def get_selected_extension(self, _=""):
+        selected_extension_index = self.extension_selector.get_selected()
+        return self.extension_selector.get_model().get_string(selected_extension_index)
 
     def get_page(self):
         return self.second_page
@@ -93,50 +107,40 @@ class Second_page:
 
     def file_dialog_result(self, dialog, result):
         try:
-            folder = dialog.save_finish(result).get_path()
-            video_path = self.main_page.video_path
+            folder = dialog.select_folder_finish(result).get_path()
+            video_name = self.entry_field.get_text()
+            input_video_path = self.main_page.video_path
             codec = self.get_selected_codec("")
+            extension = self.get_selected_extension()
 
             self.progress_win = Progress_window(self.main_window)
             self.progress_win.present()
             thread = threading.Thread(
                 target=self.run_the_converter,
-                args=(video_path, folder, codec),
+                args=(input_video_path, folder, video_name, codec, extension),
             )
             thread.start()
         except GLib.GError:
             return
 
-    def run_the_converter(self, video_path, folder, codec):
+    def run_the_converter(self, video_path, folder, video_name, codec, extension):
         ffmpeg = Ffmpeg()
         ffmpeg.get_video_path(video_path)
         if codec == "H.264":
             codec = "libx264"
             if self.preferences_dialog.hardware_switch_row.get_active():
                 codec = "h264_nvenc"
-            ffmpeg.convert_video(
-                self,
-                codec,
-                folder,
-            )
+            ffmpeg.convert_video(self, codec, folder, video_name, extension)
         elif codec == "HEVC":
             codec = "libx265"
             if self.preferences_dialog.hardware_switch_row.get_active():
                 codec = "hevc_nvenc"
-            ffmpeg.convert_video(
-                self,
-                codec,
-                folder,
-            )
+            ffmpeg.convert_video(self, codec, folder, video_name, extension)
         else:
             codec = "libsvtav1"
             if self.preferences_dialog.hardware_switch_row.get_active():
                 codec = "av1_nvenc"
-            ffmpeg.convert_video(
-                self,
-                codec,
-                folder,
-            )
+            ffmpeg.convert_video(self, codec, folder, video_name, extension)
 
     def show_preferences_dialog(self, _):
         self.preferences_dialog.present(self.main_window)
@@ -281,15 +285,20 @@ class Ffmpeg:
         self.video_path = None
         self.duration = None
 
-    def convert_video(self, window, codec, output_path):
+    def convert_video(self, window, codec, folder, video_name, extension):
         process = subprocess.Popen(
-            f"ffmpeg -y -i {self.video_path} -c:v {codec} -c:a copy {output_path}",
+            f"ffmpeg -y -i {self.video_path} -c:v {codec} -c:a copy {folder}/{video_name}{extension}",
             shell=True,
             stderr=subprocess.PIPE,
             text=True,
         )
         for line in process.stderr:
-            if self.cancel_process(process, window.progress_win, output_path) == "done":
+            if (
+                self.cancel_process(
+                    process, window.progress_win, folder, video_name, extension
+                )
+                == "done"
+            ):
                 break
             same = re.search(r"time=(\d+):(\d+):(\d+.\d+)", line)
             if same is not None:
@@ -319,9 +328,9 @@ class Ffmpeg:
         minutes *= 60
         return seconds + minutes + hours
 
-    def cancel_process(self, process, progress_win, output_video_path):
+    def cancel_process(self, process, progress_win, folder, video_name, extension):
         if progress_win.cancellation:
             GLib.idle_add(progress_win.process_end)
             process.kill()
-            subprocess.run(f"rm {output_video_path}", shell=True)
+            subprocess.run(f"rm {folder}/{video_name}{extension}", shell=True)
             return "done"
