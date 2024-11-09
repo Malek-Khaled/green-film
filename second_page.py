@@ -1,4 +1,5 @@
 import subprocess
+import string
 import threading
 import re
 from file_dialog import File_dialog
@@ -46,6 +47,8 @@ class Second_page:
         self.clamp_box.append(self.entry_box)
 
         self.entry_field = Adw.EntryRow()
+        self.entry_field.set_max_length(30)
+        self.entry_field.connect("changed", self.on_entry_changed)
         self.entry_field.set_title("Video Name")
         self.entry_field.set_hexpand(True)
 
@@ -72,6 +75,7 @@ class Second_page:
         self.converting_box = Gtk.Box(spacing=10)
         self.clamp_box.append(self.converting_box)
         self.converting_button = Gtk.Button(label="Convert")
+        self.converting_button.set_sensitive(False)
         self.converting_button.set_hexpand(True)
         self.converting_box.append(self.converting_button)
         self.converting_button.add_css_class("suggested-action")
@@ -89,6 +93,20 @@ class Second_page:
         self.preferences_button.set_margin_top(15)
         self.preferences_button.connect("clicked", self.show_preferences_dialog)
         self.converting_box.append(self.preferences_button)
+
+    def on_entry_changed(self, entry_field):
+        text = entry_field.get_text()
+        not_allowed_chars = Ffmpeg.not_allowed_chars()
+        if len(text) != 0:
+            for char in text:
+                if char not in not_allowed_chars:
+                    self.converting_button.set_sensitive(True)
+                else:
+                    self.converting_button.set_sensitive(False)
+                    break
+
+        else:
+            self.converting_button.set_sensitive(False)
 
     def get_selected_codec(self, _=""):
         selected_codec_index = self.codecs_row.get_selected()
@@ -334,3 +352,20 @@ class Ffmpeg:
             process.kill()
             subprocess.run(f"rm {folder}/{video_name}{extension}", shell=True)
             return "done"
+
+    @staticmethod
+    def not_allowed_chars():
+        not_allowed_chars = list(string.punctuation)
+        not_allowed_chars.append(" ")
+        return Ffmpeg.delete_allowed_chars(not_allowed_chars)
+
+    @staticmethod
+    def delete_allowed_chars(lis):
+        lis.remove(",")
+        lis.remove("^")
+        allowed_chars = ["+", "~", "^", "@", "-", "_", ",", "=", "[", "]"]
+        for char in lis:
+            print(char)
+            if char in allowed_chars:
+                lis.remove(char)
+        return lis
