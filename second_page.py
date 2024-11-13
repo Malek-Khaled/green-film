@@ -311,6 +311,7 @@ class Ffmpeg:
             text=True,
         )
         for line in process.stderr:
+            print(line)
             if (
                 self.cancel_process(
                     process, window.progress_win, folder, video_name, extension
@@ -365,7 +366,6 @@ class Ffmpeg:
         lis.remove("^")
         allowed_chars = ["+", "~", "^", "@", "-", "_", ",", "=", "[", "]"]
         for char in lis:
-            print(char)
             if char in allowed_chars:
                 lis.remove(char)
         return lis
