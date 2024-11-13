@@ -213,11 +213,14 @@ class Ffmpeg:
     def error_window_presenter(self, process_line, error_window):
         encoder_match = re.search(r"Encoder not found", process_line)
         decoder_match = re.search(r"but no decoder found for:", process_line)
+        ffmpeg_not_found_match = re.search(r"ffmpeg: not found",process_line)
 
         if encoder_match is not None:
             GLib.idle_add(error_window.no_encoder_found_present)
         elif decoder_match is not None:
             GLib.idle_add(error_window.no_hardware_decoder_found_present)
+        elif ffmpeg_not_found_match is not None:
+            GLib.idle_add(error_window.ffmpeg_not_found)
 
 
 class Errors_handling_window(Adw.Window):
@@ -267,6 +270,11 @@ class Errors_handling_window(Adw.Window):
         self.error_label.set_label(
             "There Is No Hardware Acceleration Support On Your Card"
         )
+        self.present()
+
+    def ffmpeg_not_found(self):
+        self.error_label.add_css_class("title-3")
+        self.error_label.set_label("FFmpeg Is Not installed")
         self.present()
 
     def close_Window(self, _):
