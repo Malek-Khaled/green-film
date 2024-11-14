@@ -62,14 +62,21 @@ class Second_page:
         self.entry_box.append(self.extension_group)
         self.extension_group.add(self.extension_selector)
 
-        # combo row
+        # Video settings group
+        self.video_settings_group = Adw.PreferencesGroup()
+        # Codecs
         self.codecs_row = Adw.ComboRow()
         self.codecs_row.set_title("Codecs")
         self.codecs_row.set_model(Gtk.StringList.new(["H.264", "HEVC"]))
+        # Video quality
+        self.video_quality_row = Adw.ComboRow()
+        self.video_quality_row.set_title("Quality")
+        self.video_quality_dict = {"Low":30,"Medium":20,"High":10,"Lossless":0}
+        self.video_quality_row.set_model(Gtk.StringList.new(list(self.video_quality_dict.keys())))
 
-        self.codecs_row_group = Adw.PreferencesGroup()
-        self.codecs_row_group.add(self.codecs_row)
-        self.clamp_box.append(self.codecs_row_group)
+        self.video_settings_group.add(self.codecs_row)
+        self.video_settings_group.add(self.video_quality_row)
+        self.clamp_box.append(self.video_settings_group)
 
         # converting button
         self.converting_box = Gtk.Box(spacing=10)
@@ -116,6 +123,11 @@ class Second_page:
         selected_extension_index = self.extension_selector.get_selected()
         return self.extension_selector.get_model().get_string(selected_extension_index)
 
+    def get_selected_quality(self,_=""):
+        selected_quality_index = self.video_quality_row.get_selected()
+        quality_dict_key = self.video_quality_row.get_model().get_string(selected_quality_index)
+        return self.video_quality_dict[quality_dict_key]
+
     def get_page(self):
         return self.second_page
 
@@ -128,37 +140,38 @@ class Second_page:
             folder = dialog.select_folder_finish(result).get_path()
             video_name = self.entry_field.get_text()
             input_video_path = self.main_page.video_path
-            codec = self.get_selected_codec("")
+            codec = self.get_selected_codec()
             extension = self.get_selected_extension()
+            quality = self.get_selected_quality()
 
             self.progress_win = Progress_window(self.main_window)
             self.progress_win.present()
             thread = threading.Thread(
                 target=self.run_the_converter,
-                args=(input_video_path, folder, video_name, codec, extension),
+                args=(input_video_path, folder, video_name, codec, extension, quality),
             )
             thread.start()
         except GLib.GError:
             return
 
-    def run_the_converter(self, video_path, folder, video_name, codec, extension):
+    def run_the_converter(self, video_path, folder, video_name, codec, extension, quality):
         ffmpeg = Ffmpeg()
         ffmpeg.get_video_path(video_path)
         if codec == "H.264":
             codec = "libx264"
             if self.preferences_dialog.hardware_switch_row.get_active():
                 codec = "h264_nvenc"
-            ffmpeg.convert_video(self, codec, folder, video_name, extension)
+            ffmpeg.convert_video(self, codec, folder, video_name, extension, quality)
         elif codec == "HEVC":
             codec = "libx265"
             if self.preferences_dialog.hardware_switch_row.get_active():
                 codec = "hevc_nvenc"
-            ffmpeg.convert_video(self, codec, folder, video_name, extension)
+            ffmpeg.convert_video(self, codec, folder, video_name, extension, quality)
         else:
             codec = "libsvtav1"
             if self.preferences_dialog.hardware_switch_row.get_active():
                 codec = "av1_nvenc"
-            ffmpeg.convert_video(self, codec, folder, video_name, extension)
+            ffmpeg.convert_video(self, codec, folder, video_name, extension, quality)
 
     def show_preferences_dialog(self, _):
         self.preferences_dialog.present(self.main_window)
@@ -303,9 +316,9 @@ class Ffmpeg:
         self.video_path = None
         self.duration = None
 
-    def convert_video(self, window, codec, folder, video_name, extension):
+    def convert_video(self, window, codec, folder, video_name, extension, quality):
         process = subprocess.Popen(
-            f"ffmpeg -y -i {self.video_path} -c:v {codec} -c:a copy {folder}/{video_name}{extension}",
+            f"ffmpeg -y -i {self.video_path} -c:v {codec} -c:a copy -crf {quality} {folder}/{video_name}{extension}",
             shell=True,
             stderr=subprocess.PIPE,
             text=True,
