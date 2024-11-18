@@ -1,13 +1,19 @@
+from second_page_widgets.entry_field import Entry_field
+from second_page_widgets.video_settings import Video_settings
+from second_page_widgets.converting_button import Converting_button
+from second_page_widgets.preferences_button import Preferences_button
+from second_page_widgets.progress_window import Progress_window
+from second_page_widgets.preferences_dialog import Preferences_dialog
+import re
 import subprocess
 import string
 import threading
-import re
 from file_dialog import File_dialog
 import gi
 
 
 from gi.repository import Adw, GLib, Gtk
-from gi.repository.GObject import idle_add
+
 
 
 class Second_page:
@@ -42,91 +48,44 @@ class Second_page:
         self.clamp_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=30)
         self.clamp.set_child(self.clamp_box)
 
-        # entry row
-        self.entry_box = Gtk.Box(spacing=6)
-        self.clamp_box.append(self.entry_box)
+        self.entry_field = Entry_field(self.clamp_box, self.on_entry_changed)
 
-        self.entry_field = Adw.EntryRow()
-        self.entry_field.set_max_length(30)
-        self.entry_field.connect("changed", self.on_entry_changed)
-        self.entry_field.set_title("Video Name")
-        self.entry_field.set_hexpand(True)
-
-        self.entry_group = Adw.PreferencesGroup()
-        self.entry_box.append(self.entry_group)
-        self.entry_group.add(self.entry_field)
-
-        self.extension_selector = Adw.ComboRow()
-        self.extension_selector.set_model(Gtk.StringList.new([".mp4", ".mov"]))
-        self.extension_group = Adw.PreferencesGroup()
-        self.entry_box.append(self.extension_group)
-        self.extension_group.add(self.extension_selector)
-
-        # Video settings group
-        self.video_settings_group = Adw.PreferencesGroup()
-        # Codecs
-        self.codecs_row = Adw.ComboRow()
-        self.codecs_row.set_title("Codecs")
-        self.codecs_row.set_model(Gtk.StringList.new(["H.264", "HEVC"]))
-        # Video quality
-        self.video_quality_row = Adw.ComboRow()
-        self.video_quality_row.set_title("Quality")
-        self.video_quality_dict = {"Low":30,"Medium":20,"High":10,"Lossless":0}
-        self.video_quality_row.set_model(Gtk.StringList.new(list(self.video_quality_dict.keys())))
-
-        self.video_settings_group.add(self.codecs_row)
-        self.video_settings_group.add(self.video_quality_row)
-        self.clamp_box.append(self.video_settings_group)
+        self.video_settings = Video_settings(self.clamp_box)
 
         # converting button
         self.converting_box = Gtk.Box(spacing=10)
         self.clamp_box.append(self.converting_box)
-        self.converting_button = Gtk.Button(label="Convert")
-        self.converting_button.set_sensitive(False)
-        self.converting_button.set_hexpand(True)
-        self.converting_box.append(self.converting_button)
-        self.converting_button.add_css_class("suggested-action")
-        self.converting_button.add_css_class("pill")
-        self.converting_button.set_margin_top(15)
-        self.converting_button.connect(
-            "clicked",
-            File_dialog.file_dialog_save,
-            self.main_window,
-            self.file_dialog_result,
-        )
-        # preferences button (more options button)
-        self.preferences_button = Gtk.Button(icon_name="open-menu-symbolic")
-        self.preferences_button.set_valign(Gtk.Align.CENTER)
-        self.preferences_button.set_margin_top(15)
-        self.preferences_button.connect("clicked", self.show_preferences_dialog)
-        self.converting_box.append(self.preferences_button)
+        self.converting_button = Converting_button(self.converting_box, self.main_window, self.file_dialog_result)
 
-    def on_entry_changed(self, entry_field):
-        text = entry_field.get_text()
+        # preferences button (more options button)
+        self.preferences_button = Preferences_button(self.converting_box, self.show_preferences_dialog)
+
+    def on_entry_changed(self,_):
+        text = self.entry_field.entry_field.get_text()
         not_allowed_chars = Ffmpeg.not_allowed_chars()
         if len(text) != 0:
             for char in text:
                 if char not in not_allowed_chars:
-                    self.converting_button.set_sensitive(True)
+                    self.converting_button.converting_button.set_sensitive(True)
                 else:
-                    self.converting_button.set_sensitive(False)
+                    self.converting_button.converting_button.set_sensitive(False)
                     break
 
         else:
-            self.converting_button.set_sensitive(False)
+            self.converting_button.converting_button.set_sensitive(False)
 
     def get_selected_codec(self, _=""):
-        selected_codec_index = self.codecs_row.get_selected()
-        return self.codecs_row.get_model().get_string(selected_codec_index)
+        selected_codec_index = self.video_settings.codecs_row.get_selected()
+        return self.video_settings.codecs_row.get_model().get_string(selected_codec_index)
 
     def get_selected_extension(self, _=""):
-        selected_extension_index = self.extension_selector.get_selected()
-        return self.extension_selector.get_model().get_string(selected_extension_index)
+        selected_extension_index = self.entry_field.extension_selector.get_selected()
+        return self.entry_field.extension_selector.get_model().get_string(selected_extension_index)
 
     def get_selected_quality(self,_=""):
-        selected_quality_index = self.video_quality_row.get_selected()
-        quality_dict_key = self.video_quality_row.get_model().get_string(selected_quality_index)
-        return self.video_quality_dict[quality_dict_key]
+        selected_quality_index = self.video_settings.video_quality_row.get_selected()
+        quality_dict_key = self.video_settings.video_quality_row.get_model().get_string(selected_quality_index)
+        return self.video_settings.video_quality_dict[quality_dict_key]
 
     def get_page(self):
         return self.second_page
@@ -138,7 +97,7 @@ class Second_page:
     def file_dialog_result(self, dialog, result):
         try:
             folder = dialog.select_folder_finish(result).get_path()
-            video_name = self.entry_field.get_text()
+            video_name = self.entry_field.entry_field.get_text()
             input_video_path = self.main_page.video_path
             codec = self.get_selected_codec()
             extension = self.get_selected_extension()
@@ -175,140 +134,6 @@ class Second_page:
 
     def show_preferences_dialog(self, _):
         self.preferences_dialog.present(self.main_window)
-
-
-class Preferences_dialog(Adw.Dialog):
-    def __init__(self, second_page):
-        super().__init__(title="Preferences")
-        self.second_page = second_page
-        self.set_content_width(600)
-        self.set_content_height(260)
-        self.set_margin_bottom(20)
-
-        self.main_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=30)
-        self.set_child(self.main_box)
-
-        self.headerbar = Adw.HeaderBar()
-        self.headerbar.add_css_class("flat")
-        self.main_box.append(self.headerbar)
-
-        self.clamp = Adw.Clamp()
-        self.clamp.set_maximum_size(500)
-        self.main_box.append(self.clamp)
-        self.clamp_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=30)
-        self.clamp.set_child(self.clamp_box)
-        # switch rows
-
-        self.settings_group = Adw.PreferencesGroup(title="Encoding Options")
-        # hardware encoding siwtch row
-        self.hardware_switch_row = Adw.SwitchRow(title="Hardware Encoding")
-        self.settings_group.add(self.hardware_switch_row)
-        self.hardware_switch_row.connect("notify::active", self.av1_option_visibility)
-        # av1 software encoding siwtch row
-        self.av1_switch_row = Adw.SwitchRow(title="AV1 Software Encoding")
-        self.settings_group.add(self.av1_switch_row)
-        self.clamp_box.append(self.settings_group)
-
-        # alert dialog
-        self.alert_dialog = Adw.AlertDialog(
-            heading="Enable AV1 Software Encoding?",
-            body="AV1 Software Encoding It May Be Very Slow On Some Devices",
-            default_response="Cancel",
-            close_response="Cancel",
-        )
-        self.alert_dialog.add_response("Cancel", "Cancel")
-        self.alert_dialog.add_response("Enable", "Enable")
-        self.alert_dialog.set_response_appearance(
-            "Enable", Adw.ResponseAppearance.DESTRUCTIVE
-        )
-        self.alert_dialog.connect("response", self.alert_dialog_response)
-        self.av1_switch_row.connect("notify::active", self.av1_switch_row_enabled)
-
-    def av1_switch_row_senstive(self):
-        if self.hardware_switch_row.get_active():
-            self.av1_switch_row.set_sensitive(False)
-
-        else:
-            self.av1_switch_row.set_sensitive(True)
-
-    def av1_option_visibility(self, _="", _2=""):
-        if self.av1_switch_row.get_active() or self.hardware_switch_row.get_active():
-            self.second_page.combo_row.set_model(
-                Gtk.StringList.new(["H.264", "HEVC", "AV1"])
-            )
-            self.av1_switch_row_senstive()
-
-        else:
-            self.second_page.combo_row.set_model(Gtk.StringList.new(["H.264", "HEVC"]))
-            self.av1_switch_row_senstive()
-
-    def av1_switch_row_enabled(self, _, _2):
-        if self.av1_switch_row.get_active():
-            self.alert_dialog.choose(parent=self.second_page.main_window)
-        self.av1_option_visibility()
-
-    def alert_dialog_response(self, dialog, response):
-        if response == "Cancel":
-            self.av1_switch_row.set_active(False)
-
-
-class Progress_window(Adw.Window):
-    def __init__(self, parent):
-        super().__init__()
-        self.cancellation = False
-        self.set_transient_for(parent)
-        self.set_modal(True)
-        self.set_title("Conversion Progress")
-        self.set_default_size(400, 200)
-
-        # main box
-        self.main_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=30)
-        self.set_content(self.main_box)
-
-        # center box
-        self.center_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=30)
-        self.center_box.set_valign(Gtk.Align.CENTER)
-        self.center_box.set_halign(Gtk.Align.CENTER)
-        self.center_box.set_hexpand(True)
-        self.center_box.set_vexpand(True)
-        self.main_box.append(self.center_box)
-
-        # clamp
-        self.clamp = Adw.Clamp()
-        self.center_box.append(self.clamp)
-        self.clamp_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=30)
-        self.clamp.set_child(self.clamp_box)
-
-        # status label
-        self.status_label = Gtk.Label(label="Converting The Video")
-        self.status_label.add_css_class("title-3")
-        self.clamp_box.append(self.status_label)
-
-        # progress bar
-        self.progress_bar = Gtk.ProgressBar()
-        self.progress_bar.set_fraction(0)
-        self.progress_bar.set_margin_start(15)
-        self.progress_bar.set_margin_end(15)
-        self.clamp_box.append(self.progress_bar)
-
-        # cancel button
-        self.cancel_button = Gtk.Button(label="Cancel")
-        self.cancel_button.add_css_class("destructive-action")
-        self.cancel_button.connect("clicked", self.cancel_state)
-        self.cancel_button_clamp = Adw.Clamp()
-        self.center_box.append(self.cancel_button_clamp)
-        self.cancel_button_clamp.set_maximum_size(50)
-        self.cancel_button_clamp.set_child(self.cancel_button)
-
-    def update_progress_bar(self, progress):
-        self.progress_bar.set_fraction(progress)
-
-    def process_end(self):
-        self.hide()
-        self.destroy()
-
-    def cancel_state(self, _):
-        self.cancellation = True
 
 
 class Ffmpeg:
