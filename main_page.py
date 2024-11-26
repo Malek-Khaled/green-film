@@ -2,6 +2,9 @@ import os
 import gi
 from second_page import Second_page
 from file_dialog import File_dialog
+from main_page_widgets.app_logo import App_logo
+from main_page_widgets.import_file_button import Import_file_button
+from main_page_widgets.app_name_label import App_name_label
 
 from gi.repository import Adw, GLib, Gtk
 
@@ -17,7 +20,6 @@ class Main_page:
         self.video_name = ""
 
         # main box
-
         self.main_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=30)
 
         # center box
@@ -43,38 +45,21 @@ class Main_page:
         self.center_box.append(self.clamp)
 
         # Logo
-        self.logo_path = absolute_path + "/greenfilm-logo.svg"
-        self.app_logo = Gtk.Image()
-        self.app_logo.set_from_file(self.logo_path)
-        self.app_logo.set_pixel_size(150)
-        self.app_logo.set_margin_bottom(25)
-        self.app_logo.add_css_class("icon-dropshadow")
+        self.app_logo = App_logo(absolute_path)
         self.clamp_box.append(self.app_logo)
 
         # input group
         self.group = Adw.PreferencesGroup()
         # button
-        self.import_file_button = Gtk.Button(label="Add a Video")
-        self.import_file_button.add_css_class("suggested-action")
-        self.import_file_button.add_css_class("pill")
-        self.import_file_button.set_margin_top(25)
-        self.import_file_button.connect(
-            "clicked",
-            File_dialog.file_dialog_open,
-            self.main_window,
-            self.file_dialog_result,
-        )
+        self.import_file_button = Import_file_button(self.main_window, self.file_dialog_result)
 
         # app name label
-        self.app_name_label = Gtk.Label(label="Green Film")
-        self.app_name_label.add_css_class("title-1")
-        self.app_name_label.set_margin_bottom(5)
+        self.app_name_label = App_name_label()
 
         # app description label
         self.description_label = Gtk.Label(label="Add A Video To Start Converting")
 
         # add widgets to preferences group
-        # self.group.add(self.combo_row)
         self.group.add(self.app_name_label)
         self.group.add(self.description_label)
         self.group.add(self.import_file_button)
