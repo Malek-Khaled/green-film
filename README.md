@@ -1,5 +1,5 @@
 # Green-film
-ffmpeg based video modifier using libadwita
+FFmpeg-based video modifier using libadwita
 
 <img width="1585" height="881" alt="image" src="https://github.com/user-attachments/assets/93a837ff-6d75-4c64-bd3c-fac9e6a4edf9" />
 
